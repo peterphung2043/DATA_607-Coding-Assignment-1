@@ -1,0 +1,133 @@
+---
+title: "DATA 607 - Coding Assignment 1"
+output: html_document
+---
+
+### Name: Peter Phung
+
+## Introduction
+
+
+Link to article: https://projects.fivethirtyeight.com/coronavirus-polls/
+
+Biden's response to the coronavirus crisis was compared to Trump's handling
+through the use of several time series graphs shown on FiveThirtyEight's
+article, _How Americans View Biden's Response To The Coronavirus Crisis_.
+The time series graphs provided in this article reveal that the majority of responders to the polls
+approved of Biden's handling from when he was sworn in, to August 25th, 2021.
+This contrasts with the majority of poll responders disapproving of Trump's
+handling from the start of the lockdowns in the US, until the swearing in
+of Biden. The time series graphs also reveal that approval to the
+coronavirus response is strongly correlated with political party affiliation.
+
+The data that was explored in this .rmd document is contained in the `covid_approval_polls_adjusted.csv`
+file on the FiveThirtyEight [Github repo](https://raw.githubusercontent.com/fivethirtyeight/covid-19-polls/master/covid_approval_polls_adjusted.csv).
+
+## Subsetting the Columns
+
+The plots of approval/disapproval percentages for Joe Biden and Donald Trump from the
+FiveThirtyEight article use the end dates and approval/disapproval percentages.
+The plots for political affiliation vs. presidential candidate for each president used
+the approval, party affiliation, and end dates. This means that the only relevant columns that were needed were the end dates, party affiliation, the approval percentages, and disapproval percentages. With that being said, several other
+columns were retained as these columns provided pertinent information
+for each row entry.
+
+```{r, message = FALSE}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(knitr)
+
+covid_approval_polls_adjusted_url <- 'https://raw.githubusercontent.com/fivethirtyeight/covid-19-polls/master/covid_approval_polls_adjusted.csv'
+
+covid_approval_polls_adjusted_df <- read.csv(url(covid_approval_polls_adjusted_url), stringsAsFactors = FALSE) %>% 
+  subset(select = -c(timestamp, modeldate, url, startdate, grade, weight, influence, multiversions, tracking)) 
+
+covid_approval_polls_adjusted_df$enddate <- as.Date(covid_approval_polls_adjusted_df$enddate, format = "%m/%d/%Y")
+
+kable(covid_approval_polls_adjusted_df[1:5, ])
+```
+
+## Replacing Non-Intuitive Abbreviations
+
+The `population` and `party` columns contain
+some non-intuitive abbreviations that should be changed. For example, `D` should be changed
+to `Democrat` for each row where `D` is present in the `population` column. The `covid_approval_polls_adjusted_df` data frame is small enough where by changing these abbreviations, the size of the file should not 
+increase by much and any subsequent data transformations should not take as long
+to perform.
+
+In the `population` column, the following abbreviations were changed:
+```{r, echo = FALSE}
+kable(data.frame("Abbreviation" = c("a", "rv", "lv"), "Changed To" = c ("adults", "registered voters", "likely voters")))
+```
+In the `party` column, the following abbreviations were changed:
+```{r, echo = FALSE}
+kable(data.frame("Abbreviation" = c("D", "R", "I", "all"), "Changed To" = c ("Democrat", "Republican", "Independent", "all")))
+```
+
+
+
+```{r}
+covid_approval_polls_adjusted_df$population <- replace(covid_approval_polls_adjusted_df$population,
+                                              covid_approval_polls_adjusted_df$population == "a",
+                                              "adults")
+
+covid_approval_polls_adjusted_df$population <- replace(covid_approval_polls_adjusted_df$population,
+                                              covid_approval_polls_adjusted_df$population == "rv",
+                                              "registered voters")
+
+covid_approval_polls_adjusted_df$population <- replace(covid_approval_polls_adjusted_df$population,
+                                              covid_approval_polls_adjusted_df$population == "lv",
+                                              "likely voters")
+
+covid_approval_polls_adjusted_df$party <- replace(covid_approval_polls_adjusted_df$party,
+                                              covid_approval_polls_adjusted_df$party == "R",
+                                              "Republican")
+
+covid_approval_polls_adjusted_df$party <- replace(covid_approval_polls_adjusted_df$party,
+                                              covid_approval_polls_adjusted_df$party == "D",
+                                              "Democrat")
+
+covid_approval_polls_adjusted_df$party <- replace(covid_approval_polls_adjusted_df$party,
+                                              covid_approval_polls_adjusted_df$party == "I",
+                                              "Independent")
+
+covid_approval_polls_adjusted_df$party <- replace(covid_approval_polls_adjusted_df$party,
+                                                  covid_approval_polls_adjusted_df$party == "all",
+                                                  "All")
+
+kable(covid_approval_polls_adjusted_df[1:5, ])
+```
+The changes to the `party` and `population` columns are shown on the table above.
+
+## Exploratory Data Analysis - Box and Whisker Plot
+
+The following boxplots use the adjusted approval/disapproval percentages instead of the original
+percentages. The reason for this is because each percentage was weighed against the historical accuracy of each
+pollster, which reduces the effects of bias.
+
+```{r, fig.width = 10, fig.height = 10, warning = FALSE}
+plot_list <- list()
+for (political_party in unique(covid_approval_polls_adjusted_df$party)) {
+  plot_list[[political_party]] <- ggplot(subset(covid_approval_polls_adjusted_df, party == political_party),
+         aes(subject, approve_adjusted)) + geom_boxplot() + ggtitle(political_party) + ylab('President') + xlab('Approve (Adjusted)')
+}
+
+grid.arrange(grobs = plot_list, ncol = 2)
+```
+The box and whisker plot reveals that there is a greater number of outliers for approval percentages for Donald Trump than Joe Biden. The medians for each of the box and whisker plots convey the same information as the time series plots on the FiveThirtyEight article which show the approval ratings between supports of the various political parties and for all Americans. Democrats largely approve of Biden's handling of the coronavirus pandemic, Republicans largely approve of Trump's handling, while all Americans in general favor Biden's handling. There is a significant number of outliers for the Independents that approved of Trump's handling, and also the medians between the two presidential candidates for the Independents box and whisker plots are not that far off from each other when compared to the Democrats and Republicans box and whisker plots.
+
+## Conclusions
+
+The time-series plot that shows the approval/disapproval percentages for Joe
+Biden on the FiveThirtyEight showed that the approval/disapproval percentages trend lines were converging towards
+a common percentage. Since the data is automatically updated, it would be
+interesting to view this graph after several months from now to see if the
+two trend lines do indeed cross.
+For a future analysis, the COVID Approval Polls data files could be updated
+with the percentage of race to total sample size and the percentage of those
+that are college educated vs. those that are not college educated relative to
+sample size. This data could be useful in determining the level of correlation
+between race, political party affiliation, college education and 
+approval for both candidates. Race played a significant role in the 2020 
+presidential election (source: https://www.vox.com/2021/5/10/22425178/catalist-report-2020-election-biden-trump-demographics), so the results for this proposed analysis would be interesting.
